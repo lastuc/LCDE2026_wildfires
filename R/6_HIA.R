@@ -7,7 +7,7 @@
 pathroot <- "/PROJECTES/AIRPOLLUTION/lara/LCDE2026_wildfires/"
 
 
-# 1. RR by Anna Ailari ----
+# 1. RR by Anna Alari ----
 
 # lag0: 1.008 (95% CI 1.006-1.010) per 1ug/m3 increment increase
 set.seed(1234)
