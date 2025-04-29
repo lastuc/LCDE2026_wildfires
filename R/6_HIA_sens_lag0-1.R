@@ -2,26 +2,29 @@
 #             HIA sensitivity analysis with RR from Alari lag0-1              #
 #-----------------------------------------------------------------------------#
 
-# library(here)
-library(lubridate)
-library(tidyverse)
-library(data.table)
 
 # pathroot <- ""
 pathroot <- "/PROJECTES/AIRPOLLUTION/lara/LCDE2026_wildfires/"
 
-# 1. RRs Anna Alari: lag0-1: 1.003 (95% CI 1.002-1.003) per 1ug/m3 increment increase
+
+# 1. RR Anna Alari ----
+
+# lag0-1: 1.003 (95% CI 1.002-1.003) per 1ug/m3 increment increase
 set.seed(1234)
 point_RR10 <- 1.003^10
 nsim <- 200
 sim_RR10 <- exp(rnorm(nsim, mean = log(point_RR10), sd = log((1.003^10)/(1.002^10))/(qnorm(0.975)*2)))
 names(sim_RR10) <- paste0("RR10_", str_pad(1:nsim, 3, "left", "0"))
 
+
 # 2. Mortality ----
+
 mortality <- fread(paste0(pathroot, "data/processed/mortality.csv"))
 mortality <- mortality[,.(NUTS_mort, date, year, deaths)]
 
+
 # 3. HIA Function ----
+
 hia <- function(expofile, pRR10 = point_RR10, sRR10 = sim_RR10, mort = mortality){
   
   # Read exposure data, delete cells with no population
@@ -64,7 +67,7 @@ hia <- function(expofile, pRR10 = point_RR10, sRR10 = sim_RR10, mort = mortality
                          by = .(NUTS_mort, NUTS_0, region, eu, year, date), .SDcols = PAFcols]
   names(mort_nuts) <- gsub("PAF", "attr", names(mort_nuts))
   
-  # Aggregate to years ----
+  # Aggregate to years
   attrcols <- names(mort_nuts)[grepl("attr", names(mort_nuts))]
   mort_nuts_year <- mort_nuts[, c(N = .N, lapply(.SD, sum)),
                               by = .(NUTS_mort, NUTS_0, region, eu, year),
@@ -74,34 +77,34 @@ hia <- function(expofile, pRR10 = point_RR10, sRR10 = sim_RR10, mort = mortality
     dplyr::select(-N) %>%
     complete(NUTS_mort, year)
   
-  # Aggregate to countries ----
+  # Aggregate to countries
   mort_country_year <- mort_nuts_year %>%
     group_by(year, NUTS_0, region, eu) %>%
     summarise(across(starts_with("attr"), sum)) %>%
     ungroup()
   
-  # Aggregate to regions ----
+  # Aggregate to regions
   mort_region_year <- mort_country_year %>%
     group_by(year, region) %>%
     summarise(across(starts_with("attr"), sum),
               Ncountries = n()) %>%
     ungroup()
   
-  # Aggregate to EU ----
+  # Aggregate to EU
   mort_eu_year <- mort_country_year %>%
     group_by(year, eu) %>%
     summarise(across(starts_with("attr"), sum),
               Ncountries = n()) %>%
     ungroup()
   
-  # Aggregate to Europe ----
+  # Aggregate to Europe 
   mort_euro_year <- mort_country_year %>%
     group_by(year) %>%
     summarise(across(starts_with("attr"), sum),
               Ncountries = n()) %>%
     ungroup()
   
-  # Compute CIs ----
+  # Compute CIs 
   mort_nuts_year$attrlower <-
     apply(dplyr::select(mort_nuts_year, starts_with("attr_")), 1,
           function(x) quantile(x, 0.025, na.rm=T))
@@ -148,6 +151,7 @@ hia <- function(expofile, pRR10 = point_RR10, sRR10 = sim_RR10, mort = mortality
 
 
 # 4. Execute  ----
+
 hia03 <- hia(paste0(pathroot, "data/processed/assembled/data_2003.csv"))
 hia04 <- hia(paste0(pathroot, "data/processed/assembled/data_2004.csv"))
 hia05 <- hia(paste0(pathroot, "data/processed/assembled/data_2005.csv"))
@@ -211,3 +215,6 @@ attr_euro <- bind_rows(hia03[[5]], hia04[[5]], hia05[[5]], hia06[[5]], hia07[[5]
                        hia18[[5]], hia19[[5]], hia20[[5]], hia21[[5]], hia22[[5]],
                        hia23[[5]], hia24[[5]])
 write_csv(attr_euro, paste0(pathroot, "data/processed/attributable_euro_sens_lag0-1.csv"))
+
+# clean
+rm(list = ls())
