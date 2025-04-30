@@ -341,15 +341,15 @@ pm25_nuts2 <- inner_join(pm25_nuts2, ineq, by = c("NUTS_2" = "NUTS_2"))
 FWImeans <- data.frame(category = c("low", "medium", "high"),
                         mean = tapply(pm25_nuts2$FWI, pm25_nuts2$category, mean),
                         sd = tapply(pm25_nuts2$FWI, pm25_nuts2$category, sd)) |>
-  mutate(lab = paste0("Mean (SD): ", round(mean, 2), " (", round(sd, 2), ")"))
+  mutate(lab = paste0("Mean (SD): \n", round(mean, 2), " (", round(sd, 2), ")"))
 pm25means <- data.frame(category = c("low", "medium", "high"),
                         mean = tapply(pm25_nuts2$pm25, pm25_nuts2$category, mean),
                         sd = tapply(pm25_nuts2$pm25, pm25_nuts2$category, sd)) |>
-  mutate(lab = paste0("Mean (SD): ", round(mean, 2), " (", round(sd, 2), ")")) 
+  mutate(lab = paste0("Mean (SD): \n",round(mean, 2), " (", round(sd, 2), ")")) 
 attrmeans <- data.frame(category = c("Low", "Medium", "High"),
                         mean = tapply(pm25_nuts2$attr_stand, pm25_nuts2$category, mean),
                         sd = tapply(pm25_nuts2$attr_stand, pm25_nuts2$category, sd)) |>
-  mutate(lab = paste0("Mean (SD): ", round(mean, 2), " (", round(sd, 2), ")")) 
+  mutate(lab = paste0("Mean (SD): \n", round(mean, 2), " (", round(sd, 2), ")")) 
 
 # Plot
 pm25_nuts2_fwi <- pm25_nuts2 %>%
@@ -358,7 +358,8 @@ pm25_nuts2_fwi <- pm25_nuts2 %>%
 p1 <- ggboxplot(pm25_nuts2_fwi, x = "category", y = "FWI",
                 color = "category", palette = c("#00AFBB", "#E7B800", "#FC4E07"),
                 add = "jitter") +
-  geom_text(data = FWImeans, aes(x = category, y = 0.1, label = lab), size = 3) +
+  scale_y_continuous(limits = c(1.5, 38)) +
+  geom_text(data = FWImeans, aes(x = category, y = 2, label = lab), size = 3) +
   theme_bw() + 
   xlab("Deprivation") +
   ylab("Average FWI") +
@@ -370,7 +371,8 @@ pm25_nuts2_pm25 <- pm25_nuts2 %>%
 p2 <- ggboxplot(pm25_nuts2_pm25, x = "category", y = "pm25",
                 color = "category", palette =c("#00AFBB", "#E7B800", "#FC4E07"),
                 add = "jitter") +
-  geom_text(data = pm25means, aes(x = category,  y = 0.01, label = lab), size = 3) +
+  scale_y_continuous(limits = c(-0.1, 1.1)) +
+  geom_text(data = pm25means, aes(x = category,  y = -0.08, label = lab), size = 3) +
   theme_bw() + theme(legend.position = "none") +
   xlab("Deprivation") +
   ylab(expression(Average~`wildfire-PM`[2.5]~(mu*g/m^3)))
@@ -381,7 +383,8 @@ pm25_nuts2_attr <- pm25_nuts2 %>%
 p3 <- ggboxplot(pm25_nuts2_attr, x = "category", y = "attr_stand",
                 color = "category", palette =c("#00AFBB", "#E7B800", "#FC4E07"),
                 add = "jitter") +
-  geom_text(data = pm25means, aes(x = category,  y = 0.01, label = lab), size = 3) +
+  scale_y_continuous(limits = c(-0.8, 9)) +
+  geom_text(data = pm25means, aes(x = category,  y = -0.6, label = lab), size = 3) +
   theme_bw() + theme(legend.position = "none") +
   xlab("Deprivation") +
   ylab(expression(Annual~attributable~deaths~to~`wildfire-PM`[2.5]~"/100K"))
@@ -393,7 +396,7 @@ pall <- ggpubr::ggarrange(p1, p2, p3, p4, nrow = 2, ncol = 2) +
   ggpubr::bgcolor("white") +
   ggpubr::border("white")
 
-ggsave("figures/inequalities_nuts2.png", pall,  width = 9, height = 9, dpi = 300)
+ggsave("figures/inequalities_nuts2.png", pall,  width = 8, height = 8, dpi = 300)
 rm("p1", "p2", "pall", "FWImeans",
    "pm25means", "attrmeans", "pm25_nuts2", "FWI_nuts2", "pm25_nuts2_fwi", 
    "pm25_nuts2_pm25", "pm25_nuts2_attr", "ineq")
