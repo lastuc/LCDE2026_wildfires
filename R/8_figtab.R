@@ -492,7 +492,7 @@ attnuts <- read_csv("data/processed/attributable_nuts.csv")  %>%
          attr_main_stand = paste0(round(attr_stand,2), " (", round(attrlower_stand,2),
                                   ", ", round(attrupper_stand,2), ")")) %>% 
   filter(NUTS_0!="DE") %>% # excluded because not at NUTS2 level
-  arrange(-attr) %>% 
+  arrange(-attr_stand) %>% 
   select(year, NUTS_mort, NUTS_0, attr_main, attr_main_stand) 
 attnuts <- attnuts[1:20,]
 attr <- attnuts %>% 
