@@ -8,7 +8,8 @@ library(ggpubr)
 library(ggplot2)
 library(data.table)
 library(rio)
-
+library(purrr)
+library(broom)
 
 # 0. Utils for computing trends ----
 
@@ -346,9 +347,9 @@ pm25means <- data.frame(category = c("low", "medium", "high"),
                         mean = tapply(pm25_nuts2$pm25, pm25_nuts2$category, mean),
                         sd = tapply(pm25_nuts2$pm25, pm25_nuts2$category, sd)) |>
   mutate(lab = paste0("Mean (SD): \n",round(mean, 2), " (", round(sd, 2), ")")) 
-attrmeans <- data.frame(category = c("Low", "Medium", "High"),
-                        mean = tapply(pm25_nuts2$attr_stand, pm25_nuts2$category, mean),
-                        sd = tapply(pm25_nuts2$attr_stand, pm25_nuts2$category, sd)) |>
+attrmeans <- data.frame(category = c("low", "medium", "high"),
+                        mean = tapply(pm25_nuts2$attr_stand, pm25_nuts2$category, mean, na.rm = T),
+                        sd = tapply(pm25_nuts2$attr_stand, pm25_nuts2$category, sd, na.rm = T)) |>
   mutate(lab = paste0("Mean (SD): \n", round(mean, 2), " (", round(sd, 2), ")")) 
 
 # Plot
@@ -384,7 +385,7 @@ p3 <- ggboxplot(pm25_nuts2_attr, x = "category", y = "attr_stand",
                 color = "category", palette =c("#00AFBB", "#E7B800", "#FC4E07"),
                 add = "jitter") +
   scale_y_continuous(limits = c(-0.8, 9)) +
-  geom_text(data = pm25means, aes(x = category,  y = -0.6, label = lab), size = 3) +
+  geom_text(data = attrmeans, aes(x = category,  y = -0.7, label = lab), size = 3) +
   theme_bw() + theme(legend.position = "none") +
   xlab("Deprivation") +
   ylab(expression(Annual~attributable~deaths~to~`wildfire-PM`[2.5]~"/100K"))
@@ -392,14 +393,90 @@ p3 <- ggboxplot(pm25_nuts2_attr, x = "category", y = "attr_stand",
 p4 <- as_ggplot(get_legend(p1))
 p1 <- p1 + theme(legend.position = "none")
 
+# put 3 plots in one figure
 pall <- ggpubr::ggarrange(p1, p2, p3, p4, nrow = 2, ncol = 2) +
   ggpubr::bgcolor("white") +
   ggpubr::border("white")
 
+# save figure
 ggsave("figures/inequalities_nuts2.png", pall,  width = 8, height = 8, dpi = 300)
 rm("p1", "p2", "pall", "FWImeans",
    "pm25means", "attrmeans", "pm25_nuts2", "FWI_nuts2", "pm25_nuts2_fwi", 
    "pm25_nuts2_pm25", "pm25_nuts2_attr", "ineq")
+
+
+# Pairwise testing
+# FWI histogram
+ggplot(pm25_nuts2, aes(x = FWI, fill = category)) +
+  geom_histogram(alpha = 0.6, position = "identity", bins = 30) +
+  labs(title = "Histogram of FWI by Category",
+       x = "FWI", y = "Count") +
+  theme_minimal()
+
+# PM2.5 histogram
+ggplot(pm25_nuts2, aes(x = pm25, fill = category)) +
+  geom_histogram(alpha = 0.6, position = "identity", bins = 30) +
+  labs(title = "Histogram of PM2.5 by Category",
+       x = "PM2.5", y = "Count") +
+  theme_minimal()
+
+# attr_stand histogram
+ggplot(pm25_nuts2, aes(x = attr_stand, fill = category)) +
+  geom_histogram(alpha = 0.6, position = "identity", bins = 30) +
+  labs(title = "Histogram of attr_stand by Category",
+       x = "attr_stand", y = "Count") +
+  theme_minimal()
+
+# Wilcoxon rank‑sum test
+vars <- c("pm25", "FWI", "attr_stand")
+
+pairs <- list(
+  c("medium", "low"),
+  c("high", "low"),
+  c("high", "medium"))
+
+wilcox <- map_df(vars, function(v) {
+  map_df(pairs, function(p) {
+    # Extract the two groups
+    x <- pm25_nuts2[[v]][pm25_nuts2$category == p[1]]
+    y <- pm25_nuts2[[v]][pm25_nuts2$category == p[2]]
+    # Run Wilcoxon rank-sum test
+    wilcox.test(x, y, na.rm = T, exact = F) %>% tidy() %>%
+      mutate(
+        variable = v,
+        group1 = p[1],
+        group2 = p[2]
+      )
+  })
+})
+
+# save
+write.csv(wilcox, "figures/Wilcox_deprivation.csv")
+
+
+# Welch two sample t‑test
+vars <- c("pm25", "FWI", "attr_stand")
+pairs <- list(
+  c("medium", "low"),
+  c("high", "low"),
+  c("high", "medium"))
+
+welch <- map_df(vars, function(v) {
+  map_df(pairs, function(p) {
+    t.test(
+      pm25_nuts2[[v]][pm25_nuts2$category == p[1]],
+      pm25_nuts2[[v]][pm25_nuts2$category == p[2]],
+      na.rm = T) %>% tidy() %>%
+      mutate(
+        variable = v,
+        group1 = p[1],
+        group2 = p[2]
+      )
+  })
+})
+
+# save
+write.csv(welch, "figures/t_test_deprivation.csv")
 
 
 # 5. Yearly death counts in Europe ----
