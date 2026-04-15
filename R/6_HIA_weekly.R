@@ -26,13 +26,18 @@ mortality <- mortality[,.(NUTS_mort, date, year, deaths)]
 # 3. HIA Function ----
 
 hia <- function(expofile, pRR10 = point_RR10, sRR10 = sim_RR10, mort = mortality){
-
+  
   # Read exposure data, delete cells with no population
-  expodata <- read_csv(expofile) %>% 
+  expodata <- read_csv(expofile) %>%
     mutate(eu=ifelse(eu=="Member", "Member","Not EU")) # EU remove category "candidate"
   expodata <- expodata[c("NUTS_mort", "NUTS_0", "region", "eu", "date", "population", "pm25")]
+  
+  # # expodata <- fread(expofile)
+  # expodata <- fread(paste0(pathroot, "data/processed/assembled/data_2003.csv"))
+  # expodata[eu != "Member", eu := "Not EU"]
+  
   expodata <- expodata[expodata$population > 0,]
-
+  
   # Checks
   if(any(tapply(expodata$population, expodata$NUTS_mort, sum) == 0)){
     stop("Some NUTS have a population of 0. Please revise the data.")
@@ -47,63 +52,71 @@ hia <- function(expofile, pRR10 = point_RR10, sRR10 = sim_RR10, mort = mortality
   names(expodata_sims) <- gsub("RR10", "RR", names(expodata_sims))
   expodata <- cbind(expodata, expodata_sims)
   rm("expodata_sims")
-
-  # Compute population weights by NUTS, weekly population-weighted exposure + PAFs
+  
+  # Compute population weights by NUTS, daily population-weighted exposure + PAFs
   setDT(expodata)
-  expodata[, popw := population/sum(population), by = .(NUTS_mort, NUTS_0, region, date)]
+  expodata[, popw := population/sum(population), by = .(NUTS_mort, NUTS_0, region, eu, date)]
   RRcols <- names(expodata)[grepl("RR", names(expodata))]
   expodata <- expodata[, c(pm25w=sum(popw*pm25),
+                           population = sum(population), # new line to keep and sum up population
                            lapply(.SD, function(x) (sum(popw*x)-1)/sum(popw*x))),
                        by = .(NUTS_mort, NUTS_0, region, eu, date), .SDcols = RRcols]
   names(expodata) <- gsub("RR", "PAF", names(expodata))
-
+  
   # Merge mortality and exposure and estimate attributable mortality
   setkey(mort, NUTS_mort, date)
   setkey(expodata, NUTS_mort, date)
   mort_nuts <- mort[expodata, nomatch = 0]
   PAFcols <- names(mort_nuts)[grepl("PAF", names(mort_nuts))]
-  mort_nuts <- mort_nuts[, lapply(.SD, function(x) x * deaths),
+  mort_nuts <- mort_nuts[, c(list(population = sum(population)),
+                             lapply(.SD, function(x) x * deaths)),
                          by = .(NUTS_mort, NUTS_0, region, eu, year, date), .SDcols = PAFcols]
   names(mort_nuts) <- gsub("PAF", "attr", names(mort_nuts))
-
+  
   # Aggregate to years 
   attrcols <- names(mort_nuts)[grepl("attr", names(mort_nuts))]
-  mort_nuts_year <- mort_nuts[, c(N = .N, lapply(.SD, sum)),
+  mort_nuts_year <- mort_nuts[, c(list(population = population[1L]), # keep first value
+                                  N = .N, 
+                                  lapply(.SD, sum)),
                               by = .(NUTS_mort, NUTS_0, region, eu, year),
                               .SDcols = attrcols]
   setDF(mort_nuts_year)
-  mort_nuts_year <- filter(mort_nuts_year, N >= 50) %>%
+  mort_nuts_year <- filter(mort_nuts_year, N >= 52) %>%
     dplyr::select(-N) %>%
     complete(NUTS_mort, year)
-
-  # Aggregate to countries
+  
+  # Aggregate to countries 
   mort_country_year <- mort_nuts_year %>%
     group_by(year, NUTS_0, region, eu) %>%
-    summarise(across(starts_with("attr"), sum)) %>%
-    ungroup()
-
+    summarise(population = sum(population),
+              across(starts_with("attr"), sum),
+              .groups = "drop")
+  
   # Aggregate to regions 
   mort_region_year <- mort_country_year %>%
     group_by(year, region) %>%
-    summarise(across(starts_with("attr"), sum),
-              Ncountries = n()) %>%
-    ungroup()
+    summarise(population = sum(population),
+              Ncountries = n(),
+              across(starts_with("attr"), sum),
+              .groups = "drop")
   
   # Aggregate to EU 
   mort_eu_year <- mort_country_year %>%
     group_by(year, eu) %>%
-    summarise(across(starts_with("attr"), sum),
-              Ncountries = n()) %>%
-    ungroup()
-
-  # Aggregate to Europe 
+    summarise(population = sum(population),
+              Ncountries = n(),
+              across(starts_with("attr"), sum),
+              .groups = "drop")
+  
+  # Aggregate to Europe
   mort_euro_year <- mort_country_year %>%
     group_by(year) %>%
-    summarise(across(starts_with("attr"), sum),
-              Ncountries = n()) %>%
-    ungroup()
-
-  # Compute CIs 
+    summarise(population = sum(population),
+              Ncountries = n(),
+              across(starts_with("attr"), sum),
+              .groups = "drop")
+  
+  # Compute CIs
   mort_nuts_year$attrlower <-
     apply(dplyr::select(mort_nuts_year, starts_with("attr_")), 1,
           function(x) quantile(x, 0.025, na.rm=T))
@@ -134,12 +147,34 @@ hia <- function(expofile, pRR10 = point_RR10, sRR10 = sim_RR10, mort = mortality
   mort_euro_year$attrupper <-
     apply(dplyr::select(mort_euro_year, starts_with("attr_")), 1,
           function(x) quantile(x, 0.975, na.rm=T))
-  mort_nuts_year <- dplyr::select(mort_nuts_year, -starts_with("attr_"))
-  mort_country_year <- dplyr::select(mort_country_year, -starts_with("attr_"))
-  mort_region_year <- dplyr::select(mort_region_year, -starts_with("attr_"))
-  mort_eu_year <- dplyr::select(mort_eu_year, -starts_with("attr_"))
-  mort_euro_year <- dplyr::select(mort_euro_year, -starts_with("attr_"))
-
+  
+  # attributable mortality per 100K
+  mort_nuts_year <- mort_nuts_year %>% 
+    dplyr::select(-starts_with("attr_")) %>% 
+    mutate(attr_100K = attr/population*100000,
+           attrlower_100K = attrlower/population*100000,
+           attrupper_100K = attrupper/population*100000)
+  mort_country_year <- mort_country_year %>% 
+    dplyr::select(-starts_with("attr_")) %>% 
+    mutate(attr_100K = attr/population*100000,
+           attrlower_100K = attrlower/population*100000,
+           attrupper_100K = attrupper/population*100000)
+  mort_region_year <- mort_region_year %>% 
+    dplyr::select(-starts_with("attr_")) %>% 
+    mutate(attr_100K = attr/population*100000,
+           attrlower_100K = attrlower/population*100000,
+           attrupper_100K = attrupper/population*100000)
+  mort_eu_year <- mort_eu_year %>% 
+    dplyr::select(-starts_with("attr_")) %>% 
+    mutate(attr_100K = attr/population*100000,
+           attrlower_100K = attrlower/population*100000,
+           attrupper_100K = attrupper/population*100000)
+  mort_euro_year <- mort_euro_year %>% 
+    dplyr::select(-starts_with("attr_")) %>% 
+    mutate(attr_100K = attr/population*100000,
+           attrlower_100K = attrlower/population*100000,
+           attrupper_100K = attrupper/population*100000)
+  
   # Return data
   list("mortality_nuts" = mort_nuts_year,
        "mortality_country" = mort_country_year,
@@ -147,7 +182,6 @@ hia <- function(expofile, pRR10 = point_RR10, sRR10 = sim_RR10, mort = mortality
        "mortality_eu" = mort_eu_year,
        "mortality_euro" = mort_euro_year)
 }
-
 
 # 4. Execute  ----
 
