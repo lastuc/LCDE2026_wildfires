@@ -11,6 +11,7 @@ library(rio)
 library(purrr)
 library(broom)
 
+
 # 0. Utils for computing trends ----
 
 linear_trend <- function(df, outcome, spunit){
@@ -29,8 +30,7 @@ linear_trend <- function(df, outcome, spunit){
 FWI_region <- read_csv("data/processed/FWI_region.csv")
 pm25_region <- read_csv("data/processed/pm25_region.csv")
 att_region <- read_csv("data/processed/attributable_region.csv") %>% 
-  right_join(read_csv("data/processed/population_region.csv"), by = c("region"="region", "year"="year")) %>% 
-  mutate(attr_stand = (attr/population_sum*100000))
+  rename(attr_stand = attr_100K)
 FWI_trend <- split(FWI_region, f = FWI_region$region) |>
   map_df(linear_trend, outcome = "FWI_pop", spunit = "region")
 pm25_trend <- split(pm25_region, f = pm25_region$region) |>
@@ -40,7 +40,7 @@ att_trend <- split(att_region, f = att_region$region) |>
 
 p1 <- ggplot() +
   geom_abline(data = FWI_trend, aes(intercept = int, slope = coef, col=spunit),
-              lty = 2, show.legend = FALSE) +
+              lty = 2, show.legend = F) +
   geom_line(data = FWI_region, aes(x=year, y=FWI_pop, col=region, group=region),
             alpha = 0.7, lwd = 0.5) +
   scale_colour_manual(values = c("#EE3377", "#33BBEE", "#EE7733", "#009988")) +
@@ -53,7 +53,7 @@ p1 <- ggplot() +
  
 p2 <- ggplot() +
   geom_abline(data = pm25_trend, aes(intercept = int, slope = coef, col=spunit),
-              lty = 2, show.legend = FALSE) +
+              lty = 2, show.legend = F) +
   geom_line(data = pm25_region, aes(x=year, y=pm25_pop, col=region, group=region),
             alpha = 0.7, lwd = 0.5) +
   scale_colour_manual(values = c("#EE3377", "#33BBEE", "#EE7733", "#009988")) +
@@ -67,7 +67,7 @@ p2 <- ggplot() +
 
 p3 <- ggplot() + 
   geom_abline(data = att_trend, aes(intercept = int, slope = coef, col=spunit),
-              lty = 2, show.legend = FALSE) +
+              lty = 2, show.legend = F) +
   geom_line(data = att_region, aes(x = year, y = attr_stand, col = region, group = region),
             alpha = 0.7, lwd = 0.5) +
   scale_colour_manual(values = c("#EE3377", "#33BBEE", "#EE7733", "#009988")) +
@@ -107,8 +107,7 @@ rm("FWI_region", "FWI_trend", "att_region", "att_trend",
 FWI_eu <- read_csv("data/processed/FWI_eu.csv")
 pm25_eu <- read_csv("data/processed/pm25_eu.csv")
 att_eu <- read_csv("data/processed/attributable_eu.csv") %>% 
-  right_join(read_csv("data/processed/population_eu.csv"), by = c("eu"="eu", "year"="year")) %>% 
-  mutate(attr_stand = (attr/population_sum*100000))
+  rename(attr_stand = attr_100K)
 FWI_trend <- split(FWI_eu, f = FWI_eu$eu) |>
   map_df(linear_trend, outcome = "FWI_pop", spunit = "eu")
 pm25_trend <- split(pm25_eu, f = pm25_eu$eu) |>
@@ -118,7 +117,7 @@ att_trend <- split(att_eu, f = att_eu$eu) |>
 
 p1 <- ggplot() +
   geom_abline(data = FWI_trend, aes(intercept = int, slope = coef, col=spunit),
-              lty = 2, show.legend = FALSE) +
+              lty = 2, show.legend = F) +
   geom_line(data = FWI_eu, aes(x=year, y=FWI_pop, col=eu, group=eu),
             alpha = 0.7, lwd = 0.5) +
   scale_colour_manual(values = c("#0077BB", "#CC3311")) +
@@ -131,7 +130,7 @@ p1 <- ggplot() +
 
 p2 <- ggplot() +
   geom_abline(data = pm25_trend, aes(intercept = int, slope = coef, col=spunit),
-              lty = 2, show.legend = FALSE) +
+              lty = 2, show.legend = F) +
   geom_line(data = pm25_eu, aes(x=year, y=pm25_pop, col=eu, group=eu),
             alpha = 0.7, lwd = 0.5) +
   scale_colour_manual(values = c("#0077BB", "#CC3311")) +
@@ -145,7 +144,7 @@ p2 <- ggplot() +
 
 p3 <- ggplot() + 
   geom_abline(data = att_trend, aes(intercept = int, slope = coef, col=spunit),
-              lty = 2, show.legend = FALSE) +
+              lty = 2, show.legend = F) +
   geom_line(data = att_eu, aes(x = year, y = attr_stand, col = eu, group = eu),
             alpha = 0.7, lwd = 0.5) +
   scale_colour_manual(values = c("#0077BB", "#CC3311")) +
@@ -186,8 +185,7 @@ rm("FWI_eu", "FWI_trend", "att_eu", "att_trend",
 FWI_country <- read_csv("data/processed/FWI_country.csv")
 pm25_country <- read_csv("data/processed/pm25_country.csv")
 attr_country <- read_csv("data/processed/attributable_country.csv") %>% 
-  right_join(read_csv("data/processed/population_country.csv"), by = c("NUTS_0"="NUTS_0", "year"="year")) %>% 
-  mutate(attr_stand = (attr/population_sum*100000))
+  rename(attr_stand = attr_100K)
 FWI_trendpop <- split(FWI_country, f = FWI_country$NUTS_0) |>
   map_df(linear_trend, outcome = "FWI_spatial", spunit = "NUTS_0")
 pm25_trendpop <- split(pm25_country, f = pm25_country$NUTS_0) |>
@@ -314,8 +312,7 @@ FWI_nuts2 <- read_csv("data/processed/FWI_nuts2.csv") |>
   filter(year %in% 2003:2024)
 pm25_nuts2 <- read_csv("data/processed/pm25_nuts2.csv")
 attr_nuts2 <- read_csv("data/processed/attributable_nuts.csv") %>% 
-  left_join(read_csv("data/processed/population_nuts.csv"), by = c("NUTS_mort"="NUTS_mort", "year"="year")) %>% 
-  mutate(attr_stand = (attr/population_sum*100000))
+  rename(attr_stand = attr_100K)
 pm25_nuts2 <- full_join(FWI_nuts2, pm25_nuts2, by = c("NUTS_2", "year")) %>%
   full_join(attr_nuts2, by = c("NUTS_2" = "NUTS_mort", "year" = "year"))
 pm25_nuts2 <- group_by(pm25_nuts2, NUTS_2) |>
@@ -393,99 +390,23 @@ p3 <- ggboxplot(pm25_nuts2_attr, x = "category", y = "attr_stand",
 p4 <- as_ggplot(get_legend(p1))
 p1 <- p1 + theme(legend.position = "none")
 
-# put 3 plots in one figure
 pall <- ggpubr::ggarrange(p1, p2, p3, p4, nrow = 2, ncol = 2) +
   ggpubr::bgcolor("white") +
   ggpubr::border("white")
 
-# save figure
-ggsave("figures/inequalities_nuts2.png", pall,  width = 8, height = 8, dpi = 300)
+ggsave("figures/inequalities_nuts2_corrMeanSD.png", pall,  width = 8, height = 8, dpi = 300)
+
 rm("p1", "p2", "pall", "FWImeans",
    "pm25means", "attrmeans", "pm25_nuts2", "FWI_nuts2", "pm25_nuts2_fwi", 
    "pm25_nuts2_pm25", "pm25_nuts2_attr", "ineq")
 
 
-# Pairwise testing
-# FWI histogram
-ggplot(pm25_nuts2, aes(x = FWI, fill = category)) +
-  geom_histogram(alpha = 0.6, position = "identity", bins = 30) +
-  labs(title = "Histogram of FWI by Category",
-       x = "FWI", y = "Count") +
-  theme_minimal()
-
-# PM2.5 histogram
-ggplot(pm25_nuts2, aes(x = pm25, fill = category)) +
-  geom_histogram(alpha = 0.6, position = "identity", bins = 30) +
-  labs(title = "Histogram of PM2.5 by Category",
-       x = "PM2.5", y = "Count") +
-  theme_minimal()
-
-# attr_stand histogram
-ggplot(pm25_nuts2, aes(x = attr_stand, fill = category)) +
-  geom_histogram(alpha = 0.6, position = "identity", bins = 30) +
-  labs(title = "Histogram of attr_stand by Category",
-       x = "attr_stand", y = "Count") +
-  theme_minimal()
-
-# Wilcoxon rank‑sum test
-vars <- c("pm25", "FWI", "attr_stand")
-
-pairs <- list(
-  c("medium", "low"),
-  c("high", "low"),
-  c("high", "medium"))
-
-wilcox <- map_df(vars, function(v) {
-  map_df(pairs, function(p) {
-    # Extract the two groups
-    x <- pm25_nuts2[[v]][pm25_nuts2$category == p[1]]
-    y <- pm25_nuts2[[v]][pm25_nuts2$category == p[2]]
-    # Run Wilcoxon rank-sum test
-    wilcox.test(x, y, na.rm = T, exact = F) %>% tidy() %>%
-      mutate(
-        variable = v,
-        group1 = p[1],
-        group2 = p[2]
-      )
-  })
-})
-
-# save
-write.csv(wilcox, "figures/Wilcox_deprivation.csv")
-
-
-# Welch two sample t‑test
-vars <- c("pm25", "FWI", "attr_stand")
-pairs <- list(
-  c("medium", "low"),
-  c("high", "low"),
-  c("high", "medium"))
-
-welch <- map_df(vars, function(v) {
-  map_df(pairs, function(p) {
-    t.test(
-      pm25_nuts2[[v]][pm25_nuts2$category == p[1]],
-      pm25_nuts2[[v]][pm25_nuts2$category == p[2]],
-      na.rm = T) %>% tidy() %>%
-      mutate(
-        variable = v,
-        group1 = p[1],
-        group2 = p[2]
-      )
-  })
-})
-
-# save
-write.csv(welch, "figures/t_test_deprivation.csv")
-
-
 # 5. Yearly death counts in Europe ----
 
 attreuro_main <- read_csv("data/processed/attributable_euro.csv") %>% 
-  left_join(read_csv("data/processed/population_euro.csv"), by = c("year"="year")) %>% 
-  mutate(attr_stand = (attr/population_sum*100000),
-         attrlower_stand = (attrlower/population_sum*100000),
-         attrupper_stand = (attrupper/population_sum*100000)) %>% 
+  rename(attr_stand = attr_100K,
+         attrlower_stand = attrlower_100K,
+         attrupper_stand = attrupper_100K) %>% 
   mutate(attr_main = paste0(round(attr,2), " (", round(attrlower,2),
                             ", ", round(attrupper,2), ")"),
          attr_main_stand = paste0(round(attr_stand,2), " (", round(attrlower_stand,2),
@@ -494,10 +415,9 @@ attreuro_main <- read_csv("data/processed/attributable_euro.csv") %>%
 
 # Sensitivity analysis - lag0-1
 attreuro_lag0to1 <- read_csv("data/processed/attributable_euro_sens_lag0-1.csv") %>% 
-  left_join(read_csv("data/processed/population_euro.csv"), by = c("year"="year")) %>% 
-  mutate(attr_stand = (attr/population_sum*100000),
-         attrlower_stand = (attrlower/population_sum*100000),
-         attrupper_stand = (attrupper/population_sum*100000)) %>% 
+  rename(attr_stand = attr_100K,
+         attrlower_stand = attrlower_100K,
+         attrupper_stand = attrupper_100K) %>% 
   mutate(attr_main = paste0(round(attr,2), " (", round(attrlower,2),
                             ", ", round(attrupper,2), ")"),
          attr_main_stand = paste0(round(attr_stand,2), " (", round(attrlower_stand,2),
@@ -506,10 +426,9 @@ attreuro_lag0to1 <- read_csv("data/processed/attributable_euro_sens_lag0-1.csv")
 
 # Sensitivity analysis - lag 0-7
 attreuro_lag0to7 <- read_csv("data/processed/attributable_euro_sens_lag0-7.csv") %>% 
-  left_join(read_csv("data/processed/population_euro.csv"), by = c("year"="year")) %>% 
-  mutate(attr_stand = (attr/population_sum*100000),
-         attrlower_stand = (attrlower/population_sum*100000),
-         attrupper_stand = (attrupper/population_sum*100000)) %>% 
+  rename(attr_stand = attr_100K,
+         attrlower_stand = attrlower_100K,
+         attrupper_stand = attrupper_100K) %>% 
   mutate(attr_main = paste0(round(attr,2), " (", round(attrlower,2),
                             ", ", round(attrupper,2), ")"),
          attr_main_stand = paste0(round(attr_stand,2), " (", round(attrlower_stand,2),
@@ -518,10 +437,9 @@ attreuro_lag0to7 <- read_csv("data/processed/attributable_euro_sens_lag0-7.csv")
 
 # Sensitivity analysis - RR for total PM2.5 mass
 attreuro_totpm25 <- read_csv("data/processed/attributable_euro_sens_RR_totalpm25.csv") %>% 
-  left_join(read_csv("data/processed/population_euro.csv"), by = c("year"="year")) %>% 
-  mutate(attr_stand = (attr/population_sum*100000),
-         attrlower_stand = (attrlower/population_sum*100000),
-         attrupper_stand = (attrupper/population_sum*100000)) %>% 
+  rename(attr_stand = attr_100K,
+         attrlower_stand = attrlower_100K,
+         attrupper_stand = attrupper_100K) %>% 
   mutate(attr_main = paste0(round(attr,2), " (", round(attrlower,2),
                             ", ", round(attrupper,2), ")"),
          attr_main_stand = paste0(round(attr_stand,2), " (", round(attrlower_stand,2),
@@ -530,10 +448,9 @@ attreuro_totpm25 <- read_csv("data/processed/attributable_euro_sens_RR_totalpm25
 
 # Sensitivity analysis - weekly RR and HIA
 attreuro_weekly <- read_csv("data/processed/attributable_euro_weekly.csv") %>% 
-  left_join(read_csv("data/processed/population_euro.csv"), by = c("year"="year")) %>% 
-  mutate(attr_stand = (attr/population_sum*100000),
-         attrlower_stand = (attrlower/population_sum*100000),
-         attrupper_stand = (attrupper/population_sum*100000)) %>% 
+  rename(attr_stand = attr_100K,
+         attrlower_stand = attrlower_100K,
+         attrupper_stand = attrupper_100K) %>% 
   mutate(attr_main = paste0(round(attr,2), " (", round(attrlower,2),
                             ", ", round(attrupper,2), ")"),
          attr_main_stand = paste0(round(attr_stand,2), " (", round(attrlower_stand,2),
@@ -553,17 +470,16 @@ names(attr) <- c("Year", "Number of included countries",
                  "Attributable deaths (95% CI): lag0-7", "Attributable deaths/100K (95% CI): lag0-7",
                  "Attributable deaths (95% CI): Total PM2.5", "Attributable deaths/100K (95% CI): Total PM2.5")
 
-write_csv(attr, "figures/attributable_euro_sens.csv")
+write_csv(attr, "figures/attributable_euro.csv")
 rm(attreuro_main, attreuro_lag0to1, attreuro_lag0to7, attreuro_totpm25, attreuro_weekly, attr)
 
 
 # 6. Top 20 death counts 2003-2024 by NUTS 2 ----
 
-attnuts <- read_csv("data/processed/attributable_nuts.csv")  %>% 
-  left_join(read_csv("data/processed/population_nuts.csv"), by = c("NUTS_mort"="NUTS_mort", "year"="year")) %>% 
-  mutate(attr_stand = (attr/population_sum*100000),
-         attrlower_stand = (attrlower/population_sum*100000),
-         attrupper_stand = (attrupper/population_sum*100000)) %>% 
+attnuts <- read_csv("data/processed/attributable_nuts.csv") %>% 
+  rename(attr_stand = attr_100K,
+         attrlower_stand = attrlower_100K,
+         attrupper_stand = attrupper_100K) %>% 
   mutate(attr_main = paste0(round(attr,2), " (", round(attrlower,2),
                             ", ", round(attrupper,2), ")"),
          attr_main_stand = paste0(round(attr_stand,2), " (", round(attrlower_stand,2),
@@ -577,12 +493,13 @@ attr <- attnuts %>%
       NUTS_0 == "EL" ~ "Greece",
       NUTS_0 == "PT" ~ "Portugal",
       NUTS_0 == "IT" ~ "Italy",
-      NUTS_0 == "ES" ~ "Spain")) %>% 
+      NUTS_0 == "ES" ~ "Spain",
+      NUTS_0 == "BG" ~ "Bulgaria")) %>% 
     select(year, NUTS_mort, country, attr_main, attr_main_stand)
 
 names(attr) <- c("Year", "NUTS2", "Country", "Attributable deaths (95% CI)", "Attributable deaths/100K (95% CI)")
   
-write_csv(attr, "figures/attributable_nuts_20.csv")
+write_csv(attr, "figures/attributable_nuts_20_bydeathper100K.csv")
 rm(attnuts, attr)
 
 # clean
