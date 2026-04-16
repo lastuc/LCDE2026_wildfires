@@ -81,7 +81,7 @@ hia <- function(expofile, pRR10 = point_RR10, sRR10 = sim_RR10, mort = mortality
                               by = .(NUTS_mort, NUTS_0, region, eu, year),
                               .SDcols = attrcols]
   setDF(mort_nuts_year)
-  mort_nuts_year <- filter(mort_nuts_year, N >= 365) %>%
+  mort_nuts_year <- filter(mort_nuts_year, N >= 364) %>%
     dplyr::select(-N) %>%
     complete(NUTS_mort, year)
   
